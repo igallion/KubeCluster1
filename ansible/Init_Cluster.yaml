@@ -1,0 +1,44 @@
+- name: Install kube master 
+  hosts: kubecontrollers
+  tasks:
+   - name: Run k3s install script
+     ansible.builtin.shell:
+       cmd: curl -sfL https://get.k3s.io | sh -
+
+- name: Read node join token
+  hosts: kubecontrollers
+  become: true
+  tasks:
+   - name: Read node-token contents
+     slurp:
+       src: /var/lib/rancher/k3s/server/node-token
+     register: file_content
+   - name: decode file contents
+     set_fact:
+       decoded_file_content: "{{ file_content.content | b64decode | replace('\n', '') }}"
+
+- name: Return node-token file content
+  hosts: kubecontrollers
+  tasks:
+    - name: Display file content
+      debug:
+        msg: "The file content is: {{ decoded_file_content }}" 
+       
+- name: Join kubeworkers to cluster
+  hosts: kubeworkers
+  tasks:
+    - name: Debug environment variable
+      shell: "echo $K3S_TOKEN > /home/ubuntu/k3s-token"
+      become: true
+      environment:
+        K3S_TOKEN: "{{ hostvars[groups['kubecontrollers'][0]]['decoded_file_content'] }}"
+      register: debug_output
+    - name: Display debug
+      debug:
+        msg: "K3S_TOKEN: {{ debug_output.stdout }}"
+    - name: Substitute the token in a command
+      shell: |
+        TOKEN=$(cat /home/ubuntu/k3s-token)
+        echo "Using token: $TOKEN"
+        curl -sfL https://get.k3s.io | K3S_URL=https://192.168.0.151:6443 K3S_TOKEN=$TOKEN sh -
+      register: command_result

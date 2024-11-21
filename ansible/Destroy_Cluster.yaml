@@ -1,0 +1,13 @@
+- name: Uninstall kube server 
+  hosts: kubecontrollers
+  tasks:
+   - name: Run k3s uninstall script
+     ansible.builtin.shell:
+       cmd: /usr/local/bin/k3s-uninstall.sh
+
+- name: Uninstall kube-agent 
+  hosts: kubeworkers
+  tasks:
+   - name: Run k3s uninstall script
+     ansible.builtin.shell:
+       cmd: /usr/local/bin/k3s-agent-uninstall.sh
